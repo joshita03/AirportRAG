@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changi Airport RAG Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .sources {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .sources h4 {
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .source-item {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-size: 13px;
+        }
+
+        .chat-input-container {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #chatInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendButton {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: transform 0.2s;
+        }
+
+        #sendButton:hover {
+            transform: translateY(-2px);
+        }
+
+        #sendButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .example-questions {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+
+        .example-questions h3 {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .example-question {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .example-question:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 5px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 95vh;
+            }
+            
+            .message-content {
+                max-width: 90%;
+            }
+            
+            .example-question {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <h1>✈️ Changi Airport Assistant</h1>
+            <p>Ask me anything about Changi Airport and Jewel Changi Airport!</p>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    👋 Hello! I'm your Changi Airport assistant. How can I help you today?
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="example-questions">
+            <h3>Try asking:</h3>
+            <div class="example-question" onclick="fillQuestion('What is the Rain Vortex at Jewel Changi Airport?')">What is the Rain Vortex?</div>
+            <div class="example-question" onclick="fillQuestion('How many terminals does Changi Airport have?')">Terminals at Changi</div>
+            <div class="example-question" onclick="fillQuestion('What are the operating hours of Jewel Changi Airport?')">Jewel operating hours</div>
+            <div class="example-question" onclick="fillQuestion('What transportation options are available from Changi Airport?')">Transportation options</div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type your question here..." autocomplete="off">
+                <button id="sendButton" class="send-button">Send</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ChangiAirportChatbot {
+            constructor() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.loading = document.getElementById('loading');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                
+                this.setupEventListeners();
+                this.checkHealth();
+            }
+
+            setupEventListeners() {
+                this.sendButton.addEventListener('click', () => this.sendMessage());
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.sendMessage();
+                    }
+                });
+            }
+
+            async checkHealth() {
+                try {
+                    const response = await fetch('/api/health');
+                    const data = await response.json();
+                    
+                    if (data.rag_initialized) {
+                        this.statusIndicator.style.background = '#4CAF50';
+                    } else {
+                        this.statusIndicator.style.background = '#FF9800';
+                    }
+                } catch (error) {
+                    this.statusIndicator.style.background = '#F44336';
+                }
+            }
+
+            addMessage(content, isUser = false, sources = null) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.innerHTML = content;
+                
+                if (sources && sources.length > 0) {
+                    const sourcesDiv = document.createElement('div');
+                    sourcesDiv.className = 'sources';
+                    sourcesDiv.innerHTML = `
+                        <h4>📚 Sources:</h4>
+                        ${sources.map(source => `
+                            <div class="source-item">
+                                <strong>${source.title || 'Unknown'}</strong><br>
+                                <small>${source.url}</small>
+                            </div>
+                        `).join('')}
+                    `;
+                    messageContent.appendChild(sourcesDiv);
+                }
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = new Date().toLocaleTimeString();
+                messageContent.appendChild(timeDiv);
+                
+                messageDiv.appendChild(messageContent);
+                this.chatMessages.appendChild(messageDiv);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+            }
+
+            async sendMessage() {
+                const question = this.chatInput.value.trim();
+                if (!question) return;
+
+                this.addMessage(question, true);
+                this.chatInput.value = '';
+
+                this.loading.style.display = 'block';
+                this.sendButton.disabled = true;
+
+                try {
+                    const response = await fetch('/api/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ question: question })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        this.addMessage(`❌ Error: ${data.error}`, false);
+                    } else {
+                        this.addMessage(data.answer, false, data.sources);
+                    }
+                } catch (error) {
+                    this.addMessage('❌ Sorry, I encountered an error. Please try again.', false);
+                    console.error('Error:', error);
+                } finally {
+                    this.loading.style.display = 'none';
+                    this.sendButton.disabled = false;
+                    this.chatInput.focus();
+                }
+            }
+        }
+
+        function fillQuestion(question) {
+            const input = document.getElementById('chatInput');
+            input.value = question;
+            input.focus();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChangiAirportChatbot();
+        });
+    </script>
+</body>
+</html>
